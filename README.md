@@ -16,7 +16,7 @@ This repository asks a narrow, falsifiable question: **does a cross-provider beh
 
 The scheme under test is a banded-MinHash signature primitive plus a trajectory-level sequence model, originally specified as a deployable cross-provider protocol in the design paper included here (`Decentralized_Telemetry_Adversarial_AI_Intent_v8.1.pdf`). **That paper is the design under test, not a validated system.** This README reports what happened when the primitives were run against real data.
 
-The short version: a per-message classifier detects grooming structure in the static PAN 2012 corpus with high AUC, but the protocol's signature-matching primitive achieves near-zero recall on real conversations at any false-positive rate a deployment could tolerate, and detection degrades sharply — in the heaviest perturbation, below random for the per-message baseline — once realistic adaptive noise is introduced. The trajectory model is more robust to that perturbation than the per-message baseline, which is the one direction worth pursuing further.
+The short version: a per-message classifier detects grooming structure in the static PAN 2012 corpus with high AUC, but the protocol's signature-matching primitive achieves near-zero recall on real conversations at any false-positive rate a deployment could tolerate, and detection degrades sharply — in the heaviest perturbation, below random for the per-message baseline — once realistic adaptive noise is introduced. Conversation-level models are more robust to that perturbation than per-message scoring, and matched controls show the robustness comes from conversation-level averaging/training rather than from trajectory/order structure — which redirects, rather than validates, the design's trajectory hypothesis.
 
 This is reported as a mixed result on purpose. The contribution is the decomposition of *where* behavioral detection holds and where it breaks, on real data, with the failure modes documented rather than smoothed over.
 
@@ -36,10 +36,13 @@ All numbers below are produced by scripts in `experiments/` and written to `expe
 
 | Question | Result | Status |
 |---|---|---|
-| Can a per-message classifier detect grooming in real static data (PAN 2012)? | LinearSVC, **AUC 0.986**, recall **0.93** at FPR 0.05 | **Holds** (real, author-disjoint split) |
+| Can a per-message classifier detect grooming in real static data (PAN 2012)? | LinearSVC, **AUC 0.986**, recall **0.95** at FPR 0.05 | **Holds** (real, conversation-level split) |
 | Does the protocol's MinHash signature-match primitive recall real conversations at a deployable operating point? | At the recommended (b=16, r=16): **recall 0.018, FPR 0.0013**. Usable recall (0.92) only appears at FPR **0.99** | **Does not hold** — no good operating point on real text |
 | Does the trajectory/sequence model beat the per-message baseline on clean data? | F1 lift **-0.023**, 95% CI [-0.042, -0.002] | **Negative / inconclusive** on clean data |
 | Does detection survive realistic perturbation? | Discourse-noise: AUC **0.92 -> 0.79**. NCMEC-constrained realism set: per-message AUC collapses to **0.13** (below random); sequence model holds at **0.57** | **Breaks** for per-message; trajectory model degrades more gracefully |
+| Does the trajectory model degrade more gracefully across a controlled perturbation sweep (5 seeds)? | Per-message AUC **0.986 -> 0.912** at heavy discourse noise; sequence AUC **0.977 -> 0.940**; sequence AUC drop is smaller at all 3 non-zero strengths. Replicates under the author-disjoint split (heavy drop **0.029** vs **0.058**), paired bootstrap CIs exclude zero | **Holds within the tested families** (real data; robustness advantage over the per-message baseline is statistically resolved) |
+| Is that robustness advantage *trajectory/order* information? | No: an order-invariant control (conversation-mean features, position weights removed) is at least as robust as the sequence model (paired CI excludes zero in its favor), and shuffling message order leaves the sequence model essentially unchanged | **Attribution revised** — conversation-level averaging/training, not order structure |
+| Do structurally similar benign conversations absorb disproportionate false positives? | Not on this proxy: per-message FPR **0.030** on keyword-matched benign vs **0.055** on random benign controls (3 seeds, n=500/set); the MinHash primitive flags almost nothing in either set | **Not observed** (real data; PAN keyword-filter proxy, not real sensitive populations) |
 | Does reputation-weighted aggregation tolerate Byzantine participants (simulation)? | Empirical beta* = **0.5** > 1/3 threshold; SPRT isolates **2.27x** faster than Hoeffding; stealth adversary beta* = 0.4 | **Demonstrated in simulation only** |
 | Does a payoff-perturbation mechanism raise cooperation in 2x2 games (GT-HarmBench)? | Cooperation improvement **0.184**; Prisoner's-Dilemma defection 1.0 -> 0.57 | **Analytical** result (mechanism design, not LLM behavior) |
 
@@ -47,11 +50,17 @@ The two findings a skeptical reader should take away:
 
 1. **The cross-provider signature primitive — the core of the original protocol — does not separate real conversations.** Real inter-conversation Jaccard similarity sits well below the band-match inflection (J* ~ 0.84 at the recommended point), so recall is near zero unless the false-positive rate is pushed to where the detector is useless. This is a clean negative result against the protocol's headline mechanism.
 
-2. **Trajectory structure costs a little on clean data but buys robustness under adaptive perturbation.** On clean PAN 2012 the per-message baseline (AUC 0.986) edges out the sequence model (0.977). Under the heaviest realism perturbation the ordering inverts: the per-message signal falls below random (0.13) while the sequence model retains weak but real discrimination (0.57). The order-shuffle evasion test points the same way — destroying message order to evade the sequence model also destroys the grooming structure an adversary is trying to execute (`exp_trajectory_lift.py`, evasion simulation).
+2. **Conversation-level aggregation costs a little on clean data but buys robustness under perturbation — and the robustness is the averaging, not the trajectory.** On clean PAN 2012 the per-message baseline (AUC 0.986) edges out the sequence model (0.977). Under perturbation the ordering inverts, consistently and with paired statistical support, and it replicates author-disjoint. But the matched controls (`exp_perturbation_model_controls.py`) show an order-invariant conversation-mean model is at least as robust as the position-weighted sequence model, and order shuffling barely moves the sequence model — so the design's trajectory hypothesis gets no support from either clean lift or robustness attribution; what survives is that conversation-level averaging/training is the robust way to score.
 
 ## Robustness under perturbation
 
 The perturbation work is the part of this study most worth extending. `tools/inject_discourse_noise.py` applies retrieval-swap and reciprocity-asymmetry perturbations; the NCMEC-constrained set in `data/agentic_ncmec/pan_ncmec_trajectories.jsonl` adds a parallel telemetry layer sampled from 2025 reporting priors **with zero edits to the underlying PAN-derived text** (text Jaccard = 1.0 between input and output is enforced, so any lift cannot come from rewritten dialogue).
+
+`experiments/exp_perturbation_sweep.py` turns the single-point perturbation observation into a controlled dose-response curve: both models are trained once on the clean training split, then evaluated on the same test set under none/light/medium/heavy discourse noise (truncation, benign-message swap, message drop, order jitter applied to test positives only), 5 perturbation seeds per strength. The sequence model's AUC drop is smaller than the per-message baseline's at all three non-zero strengths (heavy: 0.037 vs 0.075 mean AUC drop), and `experiments/exp_perturbation_sweep_author_disjoint.py` replicates the result under the stricter author-disjoint split (heavy: 0.029 vs 0.058). Mechanical validity checks (labels unchanged, split fixed, measured text/order/length changes per condition) are in the `perturbation_sanity_checks*.json` files.
+
+`experiments/exp_perturbation_model_controls.py` then asks *why* and changes the answer: against matched aggregation and order controls (per-message max/top-5 aggregation, an order-invariant concatenation classifier, an order-invariant conversation-mean twin of the sequence model, and a shuffled-order control), the sequence model's advantage over every per-message comparison is statistically resolved (paired stratified bootstrap, CIs exclude zero — `experiments/results/perturbation_paired_tests.json`), **but the order-invariant conversation-mean control is at least as robust as the sequence model, and shuffling message order barely changes the sequence model's behavior**. The robustness is therefore a property of conversation-level averaging/training, not of trajectory/order structure. `experiments/exp_perturbation_second_family.py` repeats the comparison under a second, rule-based surface-rewrite/segmentation noise family (`tools/inject_surface_rewrite_noise.py`).
+
+`experiments/exp_fp_substrate.py` asks the Trust & Safety question: do benign conversations that *look* structurally like grooming (age talk, meeting plans, secrecy language, romantic language) absorb disproportionate false positives? On the PAN keyword-filter proxy the answer is no — the per-message detector's FPR on keyword-matched benign conversations (0.030) is *lower* than on random benign controls (0.055), consistently across 3 sampling seeds. PAN negatives are only a proxy for the sensitive populations of real concern (peer support, LGBTQ+ youth, harm reduction), so this does not clear the deployment concern; it bounds it on the one substrate available here. See `experiments/results/fp_substrate.json`.
 
 The below-random AUC (0.13) on the per-message baseline is reported as-is and flagged: an AUC under 0.5 means the perturbation systematically inverts the per-message signal on this set, which is itself informative about how brittle lexical/per-message features are, but the magnitude should be read as a small-sample, single-perturbation observation rather than a calibrated robustness curve. See `experiments/results/detection_ncmec.json`, `discourse_noise_report.json`, and `realism_delta_metrics.json`.
 
@@ -117,19 +126,28 @@ Every experiment labels its data source. The tiers are never mixed in one result
 ```bash
 git clone https://github.com/gillfahrawn/adversarial-intent-telemetry.git
 cd adversarial-intent-telemetry
-pip install -r tools/requirements.txt -r validation/synthetic/requirements.txt
+pip install -r requirements.txt
 ```
 
-Experiments that run without restricted data (synthetic and simulation):
+Experiments that run without restricted data (synthetic and simulation only):
 
 ```bash
-python validation/synthetic/s_curve.py        # illustrative S-curve (synthetic)
-python experiments/exp_m8_byzantine.py        # Byzantine tolerance sweep (simulation)
-python experiments/exp_m8_sprt.py             # SPRT vs Hoeffding isolation (simulation)
-python experiments/exp_f3_reciprocity.py      # payoff-perturbation mechanism (GT-HarmBench)
+bash scripts/reproduce_public.sh
 ```
 
-Experiments that require the PAN 2012 corpus placed under `data/pan12/` (not redistributed):
+This runs, in order: `validation/synthetic/s_curve.py` (illustrative S-curve,
+synthetic), `experiments/exp_m8_byzantine.py` (Byzantine tolerance sweep,
+simulation), and `experiments/exp_m8_sprt.py` (SPRT vs. Hoeffding isolation,
+simulation). It fails fast if `numpy`/`matplotlib` are missing.
+
+`experiments/exp_f3_reciprocity.py` (payoff-perturbation mechanism,
+GT-HarmBench) is **not** in that no-restricted-data set: it requires the
+gated GT-HarmBench CSV described in `data/gt_harmbench/README.md`.
+`scripts/reproduce_public.sh` runs it automatically if that file is present
+at `data/gt_harmbench/GTHarmbenchdatatrain00000of00001.csv`, and otherwise
+skips it with an explanation — it does not fail the rest of the script.
+
+Experiments that require the PAN 2012 corpus placed under `data/pan12/` (not redistributed — see `data/pan12/README.md`):
 
 ```bash
 python experiments/exp_m3_author_split.py     # author-disjoint split
@@ -138,7 +156,11 @@ python experiments/exp_trajectory_lift.py     # per-message vs sequence model + 
 python experiments/exp_annotate_pan_manifest.py
 ```
 
-Outputs land in `experiments/results/`. A cross-domain caveat: `tools/manifest_gen.py` patterns target AI-jailbreak language (role injection, hypothetical framing), so on 2012 human-human grooming the manifest fields populate sparsely (e.g. `intent_class` 0.044, `behavior_phase` 0.054). That low transfer is reported in `pan_manifest_annotation_report.json` and bounds the cross-domain claim — it is a finding, not a bug to paper over.
+Outputs land in `experiments/results/` (and `validation/synthetic/results/`
+for the S-curve). A cross-domain caveat: `tools/manifest_gen.py` patterns target AI-jailbreak language (role injection, hypothetical framing), so on 2012 human-human grooming the manifest fields populate sparsely (e.g. `intent_class` 0.044, `behavior_phase` 0.054). That low transfer is reported in `pan_manifest_annotation_report.json` and bounds the cross-domain claim — it is a finding, not a bug to paper over.
+
+Run `python scripts/check_claims.py` to verify the headline numbers in this
+README still match the committed `experiments/results/*.json` files.
 
 ## Integrity infrastructure
 

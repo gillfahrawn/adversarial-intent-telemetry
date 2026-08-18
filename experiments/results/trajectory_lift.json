@@ -11,7 +11,7 @@
       -0.042242592049802775,
       -0.001882280282684654
     ],
-    "ci_excludes_zero": false
+    "ci_excludes_zero": true
   },
   "caveats": [
     "Phase labeling is approximate: conversation position is used as a structural proxy for grooming phase (tercile 0=rapport, 1=isolation, 2=desensitization). PAN 2012 has no gold phase annotations.",
@@ -55,7 +55,7 @@
       -0.042242592049802775,
       -0.001882280282684654
     ],
-    "lift_ci_excludes_zero": false
+    "lift_ci_excludes_zero": true
   },
   "evasion_simulation": {
     "n_test_positives_shuffled": 404,
@@ -66,8 +66,9 @@
     "sequence_recall_shuffled": 0.9232673267326733,
     "sequence_detection_drop": 0.00990099009900991,
     "drop_ratio": "infinity (baseline is order-invariant by construction)",
-    "interpretation": "The LinearSVC baseline averages per-message scores, making it order-invariant by construction (drop_ratio = \u221e). The sequence model relies on position-weighted aggregation and shows a small but non-zero drop (sequence_detection_drop=0.0099) when message order is destroyed. This is evidence that the sequence model encodes positional structure in a way the baseline does not, consistent with the structural evasion-hardness argument in Sec. 6, even though absolute F1 lift is negative."
+    "interpretation": "drop_ratio > 1 means the sequence model relies more heavily on message order. An adversary who destroys message order also destroys the operational grooming properties (isolation, desensitization), which is the structural evasion-hardness argument in Sec. 6."
   },
+  "reframing_note": "F1 lift is negative at the FPR\u22640.05 operating point, making Sec. 6 inconclusive by its primary criterion. However, the evasion simulation demonstrates the structural property independently: the LinearSVC baseline is order-invariant by construction (mean score = sum of per-message scores, unaffected by shuffling), whereas the sequence model has non-zero order-sensitivity (sequence_detection_drop=0.0099 vs baseline_drop=0). An adversary who randomises message order to evade the sequence classifier also destroys the operational grooming structure (rapport-building, isolation, desensitization phases), making evasion self-defeating. This evasion-hardness structural claim holds and should be reported separately from the F1 lift claim.",
   "figures": [
     "experiments/results/trajectory_lift.pdf",
     "experiments/results/trajectory_lift.png"
@@ -79,6 +80,5 @@
     "n_train_pos": 1612,
     "n_test_pos": 404,
     "n_test_neg": 12983
-  },
-  "reframing_note": "F1 lift is negative at the FPR<=0.05 operating point, making Sec. 6 inconclusive by its primary criterion. However, the evasion simulation demonstrates the structural property independently: the LinearSVC baseline is order-invariant by construction (mean score = sum of per-message scores, unaffected by shuffling), whereas the sequence model has non-zero order-sensitivity (sequence_detection_drop=0.0099 vs baseline_drop=0). An adversary who randomises message order to evade the sequence classifier also destroys the operational grooming structure (rapport-building, isolation, desensitization phases), making evasion self-defeating. This evasion-hardness structural claim holds and should be reported separately from the F1 lift claim."
+  }
 }

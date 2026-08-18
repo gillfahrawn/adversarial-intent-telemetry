@@ -470,10 +470,10 @@ def main() -> None:
         "ablation_table": ablation_results,
         "tau_sweep_intervention_a_only": tau_sweep,
         "figures": [
-            str(OUT / "f3_reciprocity_bars.pdf"),
-            str(OUT / "f3_reciprocity_bars.png"),
-            str(OUT / "f3_reciprocity_sweep.pdf"),
-            str(OUT / "f3_reciprocity_sweep.png"),
+            str((OUT / "f3_reciprocity_bars.pdf").relative_to(ROOT)),
+            str((OUT / "f3_reciprocity_bars.png").relative_to(ROOT)),
+            str((OUT / "f3_reciprocity_sweep.pdf").relative_to(ROOT)),
+            str((OUT / "f3_reciprocity_sweep.png").relative_to(ROOT)),
         ],
         "full_results": {
             "baseline_per_game_full": baseline_rates,

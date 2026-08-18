@@ -29,8 +29,8 @@
     "Network topology is fully connected (star: all senders \u2192 one receiver); real deployments have partial observability."
   ],
   "figures": [
-    "/Users/fahrawngill/Adv-Intent/Adversarial-Intent-Telemetry/experiments/results/m8_byzantine.pdf",
-    "/Users/fahrawngill/Adv-Intent/Adversarial-Intent-Telemetry/experiments/results/m8_byzantine.png"
+    "experiments/results/m8_byzantine.pdf",
+    "experiments/results/m8_byzantine.png"
   ],
   "full_results": {
     "eps_star": 0.0831129068134555,

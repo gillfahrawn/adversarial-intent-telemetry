@@ -1,0 +1,105 @@
+{
+  "experiment": "perturbation_sanity_checks_model_controls",
+  "source": "exp_perturbation_model_controls.py (first seed per strength)",
+  "split_hash_sha256": {
+    "train_conversation_ids": "524208efd85320f13ef13fa3496bb415d9f0959189c725242ed162392a4c6507",
+    "test_conversation_ids": "b432ff6d124249bbf866eff925789a6e3f376cb76b1646b607efe0748908b38b"
+  },
+  "author_disjointness": {
+    "n_train_predator_authors": 113,
+    "n_test_predator_authors": 29,
+    "n_overlapping_authors": 0,
+    "disjoint": true
+  },
+  "labels": {
+    "unchanged": true,
+    "label_balance": {
+      "positives": 219,
+      "negatives": 12983
+    }
+  },
+  "metadata_fields": {
+    "changed": false
+  },
+  "text_surface": {
+    "changed_for_nonzero_strengths": true,
+    "family": "discourse_noise (same as perturbation_sweep.json)"
+  },
+  "identical_perturbed_conversations_across_models": true,
+  "no_raw_text_in_outputs": true,
+  "per_condition": [
+    {
+      "strength_name": "none",
+      "strength": 0.0,
+      "seed": null,
+      "labels_unchanged": true,
+      "n_test_conversations_unchanged": true,
+      "mean_token_jaccard_original_vs_perturbed": 1.0,
+      "mean_messages_per_conversation": {
+        "before": 54.205479452054796,
+        "after": 54.205479452054796
+      },
+      "op_totals": {}
+    },
+    {
+      "strength_name": "light",
+      "strength": 0.15,
+      "seed": 0,
+      "labels_unchanged": true,
+      "n_test_conversations_unchanged": true,
+      "mean_token_jaccard_original_vs_perturbed": 0.8311105342368393,
+      "mean_messages_per_conversation": {
+        "before": 54.205479452054796,
+        "after": 52.68036529680365
+      },
+      "op_totals": {
+        "kept": 10180,
+        "truncated": 697,
+        "swapped_benign": 660,
+        "dropped": 334,
+        "adjacent_transpositions": 839,
+        "drop_guard_hits": 4
+      }
+    },
+    {
+      "strength_name": "medium",
+      "strength": 0.35,
+      "seed": 0,
+      "labels_unchanged": true,
+      "n_test_conversations_unchanged": true,
+      "mean_token_jaccard_original_vs_perturbed": 0.6103583366449834,
+      "mean_messages_per_conversation": {
+        "before": 54.205479452054796,
+        "after": 50.333333333333336
+      },
+      "op_totals": {
+        "kept": 7745,
+        "truncated": 1621,
+        "swapped_benign": 1657,
+        "dropped": 848,
+        "adjacent_transpositions": 1892,
+        "drop_guard_hits": 8
+      }
+    },
+    {
+      "strength_name": "heavy",
+      "strength": 0.6,
+      "seed": 0,
+      "labels_unchanged": true,
+      "n_test_conversations_unchanged": true,
+      "mean_token_jaccard_original_vs_perturbed": 0.38043049618593244,
+      "mean_messages_per_conversation": {
+        "before": 54.205479452054796,
+        "after": 47.55707762557078
+      },
+      "op_totals": {
+        "kept": 4700,
+        "truncated": 2920,
+        "swapped_benign": 2795,
+        "dropped": 1456,
+        "adjacent_transpositions": 3055,
+        "drop_guard_hits": 23
+      }
+    }
+  ]
+}

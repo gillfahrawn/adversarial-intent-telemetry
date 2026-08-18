@@ -5,3 +5,5 @@ __pycache__/
 data/pan12/
 .DS_Store
 .claude/
+paper/build/
+artifact_anonymous/

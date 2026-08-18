@@ -1,0 +1,108 @@
+{
+  "experiment": "perturbation_sanity_checks_second_family",
+  "source": "exp_perturbation_second_family.py (first seed per strength)",
+  "split_hash_sha256": {
+    "train_conversation_ids": "524208efd85320f13ef13fa3496bb415d9f0959189c725242ed162392a4c6507",
+    "test_conversation_ids": "b432ff6d124249bbf866eff925789a6e3f376cb76b1646b607efe0748908b38b"
+  },
+  "author_disjointness": {
+    "n_train_predator_authors": 113,
+    "n_test_predator_authors": 29,
+    "n_overlapping_authors": 0,
+    "disjoint": true
+  },
+  "labels": {
+    "unchanged": true,
+    "label_balance": {
+      "positives": 219,
+      "negatives": 12983
+    }
+  },
+  "metadata_fields": {
+    "changed": false,
+    "note": "Author IDs preserved, including through split/merge ops."
+  },
+  "text_surface": {
+    "changed_for_nonzero_strengths": true,
+    "family": "surface_rewrite_rule_based",
+    "how": "register substitutions, casing/punctuation jitter, message split/merge; no content generated, no messages dropped or swapped."
+  },
+  "order_changed": "Message order is preserved except where split/merge changes segmentation locally; no transpositions.",
+  "no_raw_text_in_outputs": true,
+  "per_condition": [
+    {
+      "strength_name": "none",
+      "strength": 0.0,
+      "seed": null,
+      "labels_unchanged": true,
+      "n_test_conversations_unchanged": true,
+      "mean_token_jaccard_original_vs_perturbed": 1.0,
+      "mean_messages_per_conversation": {
+        "before": 54.205479452054796,
+        "after": 54.205479452054796
+      },
+      "note": "Message count may change via split/merge ops; conversation count and labels never change. Token Jaccard < 1 reflects register substitutions only.",
+      "op_totals": {}
+    },
+    {
+      "strength_name": "light",
+      "strength": 0.15,
+      "seed": 0,
+      "labels_unchanged": true,
+      "n_test_conversations_unchanged": true,
+      "mean_token_jaccard_original_vs_perturbed": 0.9828297345293052,
+      "mean_messages_per_conversation": {
+        "before": 54.205479452054796,
+        "after": 54.36073059360731
+      },
+      "note": "Message count may change via split/merge ops; conversation count and labels never change. Token Jaccard < 1 reflects register substitutions only.",
+      "op_totals": {
+        "kept": 10051,
+        "substituted": 1234,
+        "case_punct": 340,
+        "split": 140,
+        "merged": 106
+      }
+    },
+    {
+      "strength_name": "medium",
+      "strength": 0.35,
+      "seed": 0,
+      "labels_unchanged": true,
+      "n_test_conversations_unchanged": true,
+      "mean_token_jaccard_original_vs_perturbed": 0.9479983462890167,
+      "mean_messages_per_conversation": {
+        "before": 54.205479452054796,
+        "after": 54.73972602739726
+      },
+      "note": "Message count may change via split/merge ops; conversation count and labels never change. Token Jaccard < 1 reflects register substitutions only.",
+      "op_totals": {
+        "kept": 7755,
+        "substituted": 2788,
+        "case_punct": 807,
+        "split": 319,
+        "merged": 202
+      }
+    },
+    {
+      "strength_name": "heavy",
+      "strength": 0.6,
+      "seed": 0,
+      "labels_unchanged": true,
+      "n_test_conversations_unchanged": true,
+      "mean_token_jaccard_original_vs_perturbed": 0.9146244497804548,
+      "mean_messages_per_conversation": {
+        "before": 54.205479452054796,
+        "after": 54.97716894977169
+      },
+      "note": "Message count may change via split/merge ops; conversation count and labels never change. Token Jaccard < 1 reflects register substitutions only.",
+      "op_totals": {
+        "kept": 4730,
+        "substituted": 4786,
+        "case_punct": 1432,
+        "split": 546,
+        "merged": 377
+      }
+    }
+  ]
+}

@@ -1,0 +1,165 @@
+{
+  "experiment": "perturbation_paired_tests",
+  "split_type": "author_disjoint_80_20",
+  "perturbation_family": "discourse_noise",
+  "perturbation_seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "method": "Stratified paired bootstrap over test conversations (B=1000): positives and negatives resampled separately with the same indices for every model; perturbed positive scores averaged over the 5 perturbation seeds before computing AUC. diff = sequence AUC drop \u2212 comparator AUC drop; negative diff favors the sequence model.",
+  "interpretation": {
+    "ci_below_zero": "sequence model's robustness advantage is statistically resolved vs this comparator",
+    "ci_contains_zero": "advantage is descriptive but not resolved",
+    "ci_above_zero": "comparator is more robust; trajectory claim weakened vs this comparator"
+  },
+  "comparisons": {
+    "per_message_mean": {
+      "light": {
+        "mean_diff_sequence_drop_minus_comparator_drop": -0.012340307152627062,
+        "ci95": [
+          -0.020195165648651283,
+          -0.005351773675234494
+        ],
+        "ci_excludes_zero": true,
+        "favors": "sequence"
+      },
+      "medium": {
+        "mean_diff_sequence_drop_minus_comparator_drop": -0.014896145187401729,
+        "ci95": [
+          -0.023886720323063826,
+          -0.00801226894178796
+        ],
+        "ci_excludes_zero": true,
+        "favors": "sequence"
+      },
+      "heavy": {
+        "mean_diff_sequence_drop_minus_comparator_drop": -0.026119050131239423,
+        "ci95": [
+          -0.0364845651689933,
+          -0.01652054126277536
+        ],
+        "ci_excludes_zero": true,
+        "favors": "sequence"
+      }
+    },
+    "per_message_max": {
+      "light": {
+        "mean_diff_sequence_drop_minus_comparator_drop": -0.013204118346541687,
+        "ci95": [
+          -0.021682876835426287,
+          -0.00516964667881473
+        ],
+        "ci_excludes_zero": true,
+        "favors": "sequence"
+      },
+      "medium": {
+        "mean_diff_sequence_drop_minus_comparator_drop": -0.012047482535117051,
+        "ci95": [
+          -0.01983488594322669,
+          -0.004269044134637466
+        ],
+        "ci_excludes_zero": true,
+        "favors": "sequence"
+      },
+      "heavy": {
+        "mean_diff_sequence_drop_minus_comparator_drop": -0.032569433263097476,
+        "ci95": [
+          -0.047144017273027,
+          -0.019290087634795887
+        ],
+        "ci_excludes_zero": true,
+        "favors": "sequence"
+      }
+    },
+    "per_message_top5": {
+      "light": {
+        "mean_diff_sequence_drop_minus_comparator_drop": -0.014122892528585862,
+        "ci95": [
+          -0.02133957138189488,
+          -0.007333254902705517
+        ],
+        "ci_excludes_zero": true,
+        "favors": "sequence"
+      },
+      "medium": {
+        "mean_diff_sequence_drop_minus_comparator_drop": -0.021018865731337474,
+        "ci95": [
+          -0.029035057963047707,
+          -0.014119429798785006
+        ],
+        "ci_excludes_zero": true,
+        "favors": "sequence"
+      },
+      "heavy": {
+        "mean_diff_sequence_drop_minus_comparator_drop": -0.03717783265577009,
+        "ci95": [
+          -0.048330847645164286,
+          -0.026275579199634698
+        ],
+        "ci_excludes_zero": true,
+        "favors": "sequence"
+      }
+    },
+    "conv_concat": {
+      "light": {
+        "mean_diff_sequence_drop_minus_comparator_drop": -0.00792836276592116,
+        "ci95": [
+          -0.013835852961213447,
+          -0.00355441977689822
+        ],
+        "ci_excludes_zero": true,
+        "favors": "sequence"
+      },
+      "medium": {
+        "mean_diff_sequence_drop_minus_comparator_drop": -0.014726905433413635,
+        "ci95": [
+          -0.0217241276527051,
+          -0.008291115322214647
+        ],
+        "ci_excludes_zero": true,
+        "favors": "sequence"
+      },
+      "heavy": {
+        "mean_diff_sequence_drop_minus_comparator_drop": -0.05456882692048647,
+        "ci95": [
+          -0.06567375426312691,
+          -0.04481027525633282
+        ],
+        "ci_excludes_zero": true,
+        "favors": "sequence"
+      }
+    },
+    "conv_mean": {
+      "light": {
+        "mean_diff_sequence_drop_minus_comparator_drop": 0.0017137113267543,
+        "ci95": [
+          0.00035077043144250144,
+          0.0034198567357312387
+        ],
+        "ci_excludes_zero": true,
+        "favors": "comparator"
+      },
+      "medium": {
+        "mean_diff_sequence_drop_minus_comparator_drop": 0.0026265523900766636,
+        "ci95": [
+          0.0007082496710659359,
+          0.005037620323310267
+        ],
+        "ci_excludes_zero": true,
+        "favors": "comparator"
+      },
+      "heavy": {
+        "mean_diff_sequence_drop_minus_comparator_drop": 0.003912881509610215,
+        "ci95": [
+          0.0018334038505569306,
+          0.006434177886994496
+        ],
+        "ci_excludes_zero": true,
+        "favors": "comparator"
+      }
+    }
+  }
+}

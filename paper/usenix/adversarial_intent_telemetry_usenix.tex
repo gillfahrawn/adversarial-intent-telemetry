@@ -1,0 +1,861 @@
+% =====================================================================
+% USENIX-oriented source for:
+%   Adversarial Intent Telemetry: An Empirical Study of
+%   Behavioral-Signature Detection Under Adaptive Perturbation
+%
+% Derived (compressed) from the v9 single-column draft
+% (../../Decentralized_Telemetry_Adversarial_AI_Intent_v8.1.tex), which
+% remains the authoritative long-form draft. Content claims are identical;
+% see paper/length_reduction_plan.md for what was cut and where it lives.
+%
+% The official USENIX style file (usenix.sty) is present in this directory
+% and is used by default; the \IfFileExists switch below detects it. The
+% official style already provides Times (mathptmx), T1 fontenc, utf8
+% inputenc, microtype, cite, url/breakurl, xcolor, and colored hyperref, so
+% those packages are NOT re-loaded when it is active (doing so clashes on
+% hyperref options). The fallback branch (fired only if usenix.sty is
+% removed) emulates USENIX geometry (10pt Times, two columns, 7in x 9.25in
+% text block, 0.33in gutter) so lengths stay realistic during offline edits.
+%
+% Compile FROM THE REPOSITORY ROOT (paths to tables/figures are
+% root-relative):
+%   pdflatex -interaction=nonstopmode -halt-on-error \
+%     -output-directory=paper/build -jobname=usenix_draft \
+%     paper/usenix/adversarial_intent_telemetry_usenix.tex
+%   bibtex paper/build/usenix_draft
+%   pdflatex ... (twice more)
+% =====================================================================
+\documentclass[letterpaper,twocolumn,10pt]{article}
+
+% Official USENIX style is loaded if found. Two detection paths so the same
+% source builds both from paper/usenix/ (bare filename on the input path) and
+% from the repository root (root-relative path; the documented compile CWD,
+% where TeX does not search the main file's own directory). The style
+% provides Times (mathptmx), fontenc, inputenc, microtype, cite, url/breakurl,
+% xcolor, and colored hyperref, so those are not re-loaded here.
+\IfFileExists{usenix.sty}{%
+  \usepackage{usenix}%
+}{%
+  \IfFileExists{paper/usenix/usenix.sty}{%
+    % \input (not \usepackage) because the file is off the input path; the
+    % \makeatletter guard is required so usenix.sty's \if@twocolumn parses.
+    \makeatletter\input{paper/usenix/usenix.sty}\makeatother
+  }{%
+    % ---- Fallback USENIX-geometry emulation (only if usenix.sty is absent) -
+    \usepackage[letterpaper,total={7in,9.25in},centering]{geometry}
+    \setlength{\columnsep}{0.33in}
+    \usepackage{times}
+    \usepackage[T1]{fontenc}
+    \usepackage[utf8]{inputenc}
+    \usepackage[hidelinks]{hyperref}
+    \usepackage{xurl}
+  }%
+}
+
+\usepackage{amsmath, amssymb}
+\usepackage{booktabs}
+\usepackage{makecell}
+\usepackage{graphicx}
+\usepackage{enumitem}
+\setlist{itemsep=1pt, topsep=2pt, leftmargin=1.4em}
+\renewcommand\theadfont{\bfseries\footnotesize}
+
+% --- Anonymization switch (flip to \anonymoustrue for double-blind) --------
+\newif\ifanonymous
+\anonymousfalse
+
+\title{\textbf{Adversarial Intent Telemetry: An Empirical Study of\\
+Behavioral-Signature Detection Under Adaptive Perturbation}}
+\ifanonymous
+\author{Anonymous submission}
+\else
+\author{Fahrawn Gill\\ {\normalsize Advisor, AI Governance \& Cross-Platform
+Safety, Alliance to Counter Crime Online (ACCO)}}
+\fi
+\date{}
+
+\begin{document}
+\maketitle
+
+% =====================================================================
+\begin{abstract}
+Cross-platform safety infrastructure exchanges \emph{content} signatures at
+production scale; a natural next step is to exchange \emph{behavioral}
+signatures: structural fingerprints of adversarial conversations, shared
+before harmful content exists. A prior design document specified such a
+scheme: feature manifests matched across providers with banded MinHash
+signatures, backed by a trajectory-level sequence model. This paper treats
+that design as the object under test and asks whether it survives real
+adversarial data and adaptive perturbation.
+
+The answer is mixed, and the decomposition is the contribution. On the PAN
+2012 corpus, a per-message linear classifier detects grooming conversations
+well (AUC 0.986; recall 0.95 at FPR $\leq 0.05$). The design's core
+cross-provider primitive does not: at the recommended banded-MinHash
+operating point, recall on real conversations is 0.018 at FPR 0.0013, and
+usable recall (0.92) appears only at FPR 0.99. The trajectory-level sequence
+model does not beat the per-message baseline on clean data (F1 lift
+$-0.023$, 95\% CI $[-0.042, -0.002]$). One robustness signal survives
+stricter testing but changes attribution: under discourse-noise perturbation
+sweeps the sequence model degrades less than the per-message baseline at
+every strength, replicating under an author-disjoint split (heavy-noise AUC
+drop 0.029 vs.\ 0.058) with paired bootstrap support, but matched controls
+show the advantage is conversation-level averaging, not trajectory
+structure: an order-invariant control is at least as robust, and order
+shuffling leaves the sequence model unchanged. A false-positive substrate
+analysis on structurally similar benign conversations found no elevated FPR
+relative to random controls (0.030 vs.\ 0.055). Perturbation families are
+rule-based, not adaptive, and PAN 2012 is a historical human-grooming
+corpus, not evidence about agentic automation. The artifact includes
+claim-consistency checks verifying every headline number against committed
+result files.
+\end{abstract}
+
+% =====================================================================
+\section{Introduction}
+\label{sec:intro}
+
+Content-hash exchange is the one piece of cross-platform trust-and-safety
+infrastructure with an unambiguous production record: PhotoDNA-class
+perceptual hashing sustains sub-millisecond matching at
+ten-million-hash scale~\cite{photodna2023}, the Tech Coalition's Lantern
+program has moved over two million safety signals across sixty member
+companies, and the Video Hash Interoperability Project (VHIP) showed that
+\emph{approximate}-match signatures interoperate across heterogeneous vendor
+pipelines~\cite{lantern2026}. Meanwhile the abuse surface is moving upstream
+of content~\cite{lantern2026,sok2026promptinjection,greshake2023}. It is
+therefore tempting to extend the content-hash pattern one layer up: extract
+structural features from a conversation, hash them into a compact signature,
+and share it across providers so that adversarial \emph{behavior} detected
+at one platform becomes detectable at its peers before content is generated.
+
+That temptation should be tested, not assumed. Content hashes re-identify
+near-identical objects. Behavioral signatures face a different problem: two
+conversations executing the same adversarial strategy are \emph{different
+texts}, and the question is whether any fixed structural representation
+places them close together, and benign conversations far apart,
+reliably enough to match at a deployable false-positive rate.
+
+A prior design document (``Decentralized Telemetry for Adversarial AI
+Intent,'' v8.1, included with the artifact~\cite{artifact2026}) specified a
+complete scheme of this kind: canonical feature manifests, banded MinHash
+signatures, a trajectory-level sequence model, trust-decay scheduling, and a
+governance mapping. This paper does not announce that design; it evaluates
+it. Several of its central claims do not survive. We state the mixed
+result up front:
+
+\begin{itemize}
+\item A per-message baseline (LinearSVC over character n-grams) detects
+grooming in PAN 2012 at AUC 0.986, recall 0.95 at FPR $\leq 0.05$:
+behavioral structure in real adversarial conversations is detectable
+(\S\ref{sec:rq1}).
+\item The design's core cross-provider primitive fails on the same data:
+banded MinHash matching at the recommended operating point recalls 1.8\% of
+real predator conversations at FPR 0.0013; recall 0.92 requires FPR 0.99.
+No usable operating point exists on the frontier (\S\ref{sec:rq2}). This is
+a headline result, not a footnote.
+\item The trajectory-level sequence model does not improve on the
+per-message baseline on clean data: F1 lift $-0.023$, 95\% CI
+$[-0.042, -0.002]$ (\S\ref{sec:rq3}).
+\item The one positive result, with its attribution corrected: under
+discourse-noise perturbation sweeps the sequence model's AUC drop is smaller
+than the baseline's at every strength, replicating author-disjoint
+(0.029 vs.\ 0.058 at heavy noise) with paired bootstrap support. Matched
+aggregation and order controls then show the advantage comes from
+\emph{conversation-level averaging}, not trajectory or order information:
+an order-invariant twin of the sequence model is at least as robust, and
+order shuffling barely moves the sequence model (\S\ref{sec:rq4}).
+\item A false-positive substrate analysis on structurally similar benign
+conversations, the population a deployed system would most plausibly harm,
+found no elevated FPR relative to random benign controls on the PAN
+proxy (\S\ref{sec:rq5}).
+\end{itemize}
+
+\textbf{Contributions.}
+(1) An evaluation of a proposed behavioral-signature telemetry design under
+real-data and perturbation tests on PAN 2012.
+(2) A negative result for the banded-MinHash signature primitive: no usable
+recall/FPR operating point on real text.
+(3) A negative result for clean-data trajectory lift over a strong
+per-message baseline.
+(4) A perturbation-robustness result that survives author-disjoint
+replication with paired statistical support, and matched aggregation/order
+controls showing it is conversation-level averaging, not trajectory
+structure, correcting the design's trajectory hypothesis.
+(5) A substrate-conditional false-positive measurement on structurally
+similar benign conversations, with no elevated FPR observed on the proxy.
+(6) A reproducible artifact with claim-consistency checks, machine-generated
+result tables, provenance documentation, and a validity-boundary
+statement~\cite{artifact2026}.
+
+Table~\ref{tab:evidence} maps every claim to its evidence status and source
+file; nothing in this paper should be read as stronger than its row there.
+
+\begin{table*}[!t]
+\centering
+\footnotesize
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{@{}p{5.6cm} p{3.6cm} p{7.6cm}@{}}
+\toprule
+\thead{Claim} & \thead{Status} & \thead{Evidence (result file, section)} \\
+\midrule
+Per-message classifier detects grooming on clean PAN 2012 & Real data: holds & AUC 0.986, recall 0.95 @ FPR $\leq 0.05$; conversation-level split. \texttt{trajectory\_lift.json} (\S\ref{sec:rq1}) \\
+MinHash matching separates real conversations at deployable FPR & Real data: \textbf{negative} & Recall 0.018 @ FPR 0.0013 at $(16,16)$; recall 0.92 only @ FPR 0.99; author-disjoint. \texttt{m3\_frontier.json} (\S\ref{sec:rq2}) \\
+Trajectory model lifts F1 over baseline on clean data & Real data: negative/inconclusive & Lift $-0.023$, CI $[-0.042,-0.002]$. \texttt{trajectory\_lift.json} (\S\ref{sec:rq3}) \\
+Sequence model shows a smaller AUC drop than per-message baseline & Real data: holds (rule-based families) & Smaller AUC drop at all strengths, both splits, 5 seeds; paired CIs exclude zero. \texttt{perturbation\_sweep*.json}, \texttt{perturbation\_paired\_tests.json} (\S\ref{sec:rq4}) \\
+The robustness reflects trajectory/order information & Real data: \textbf{negative} & Order-invariant control at least as robust; shuffled-order control tracks the model. Attribution: conversation-level averaging. \texttt{perturbation\_model\_controls.json} (\S\ref{sec:rq4}) \\
+Structurally similar benign conversations absorb disproportionate FPs & Real data (proxy): not observed & Classifier FPR 0.030 vs.\ 0.055 on random controls; author-disjoint, 3 seeds. \texttt{fp\_substrate.json} (\S\ref{sec:rq5}) \\
+Banded-MinHash S-curve follows the closed form & Synthetic: sanity check only & Implementation matches Eq.~\eqref{eq:lsh-banded}; no real-data utility claim (\S\ref{sec:design}) \\
+Byzantine tolerance; SPRT vs.\ Hoeffding isolation & Simulation only & $\beta^\star{=}0.5$ (stealth 0.4); $2.27\times$ speedup with a weak comparator caveat. \texttt{m8\_*.json} (\S\ref{sec:rq6}) \\
+Payoff-perturbation mechanism raises cooperation & Analytical only & Game matrices, not LLM behavior. \texttt{f3\_reciprocity.json} (\S\ref{sec:rq6}) \\
+A2 agentic automation as the operative adversary & Design target: not validated & Motivated by reporting~\cite{lantern2026}; data are 2012 human conversations (\S\ref{sec:threat}) \\
+Manifest schema, handshake, latency/volumetric targets & Design context: proposed, not validated & Retained from the design document; no implementation evaluated (\S\ref{sec:design}) \\
+\bottomrule
+\end{tabular}
+\caption{Evidence and validity matrix. \emph{Simulation} and \emph{analytical} rows exercise mechanisms under stated parameters, not deployments; \emph{design context} rows carry no empirical claim.}
+\label{tab:evidence}
+\end{table*}
+
+% =====================================================================
+\section{Background and Motivation}
+\label{sec:background}
+
+\textbf{Content-hash exchange works in production.} Lantern is the operating
+cross-platform child-safety signal exchange (sixty members, two million
+signals, 350{,}000 enforcement actions by end of 2025, externally reviewed
+governance~\cite{lantern2026,bsrhria}); VHIP extends the pattern to
+approximate matching across heterogeneous video-hash pipelines (435{,}000
+videos in 2025)~\cite{lantern2026}. VHIP is the closest architectural
+precedent for the design evaluated here, and the analogy it suggests is
+exactly what this paper tests at the behavioral layer.
+
+\textbf{The abuse surface is moving upstream of content.} The 2025--2026
+reporting is directionally clear: two-orders-of-magnitude growth in
+AI-generated abuse video, over one million generative-AI-related CyberTipline
+reports in nine months, seventeen-fold growth in AI-related Lantern
+signals~\cite{lantern2026}; in parallel, the agentic-security literature
+documents indirect prompt injection~\cite{greshake2023}, cross-tool
+poisoning across MCP clients~\cite{mcpclients2026}, zero-click
+exfiltration~\cite{echoleak2025}, and protocol-level trust-model
+failures~\cite{sok2026promptinjection,mcprce2026,breakingprotocol2026}.
+% TODO(bib): replace mcprce2026 (press) with vendor advisories / NVD entries.
+Two boundaries on this motivation: the figures motivate the \emph{design
+goal} and validate nothing; and the hypothesized agentic adversary is not
+the adversary in our data: PAN 2012 records human grooming from 2012, and
+where 2025 NCMEC figures appear at all they are sampling priors for
+perturbation construction, never evidence of an agentic-abuse distribution.
+
+\textbf{Why behavioral signatures are harder than content hashes.} A
+perceptual hash re-identifies a near-duplicate object. A behavioral
+signature must place two \emph{different} conversations sharing a strategy
+close together while keeping the enormous benign population, including
+benign conversations about ages, meetings, secrets, and relationships,
+far away. Whether any fixed manifest-and-hash representation achieves that
+on real text is an empirical question; \S\ref{sec:rq2} answers it negatively
+for the evaluated design.
+
+% =====================================================================
+\section{Threat Model and Design Under Test}
+\label{sec:threat}
+
+\subsection{Threat Model}
+The threat model is retained from the design under test, with one framing
+correction made explicit: the adversary classes define what the design
+\emph{targets}, not what this paper \emph{validates}. The protected assets
+are end-user safety (priority to minors), platform policy-enforcement
+integrity, regulatory standing, and signature unlinkability. Five adversary
+classes: \textbf{A1}, an individual offender using structural prompt framing
+against a hosted model; \textbf{A2}, an agentic automation network managing
+adversarial conversations at scale across platforms with persistent persona,
+the design's lead class, motivated by reporting~\cite{lantern2026} but
+\emph{not validated in this study}, whose data are 2012 human conversations;
+\textbf{A3}, a compromised or strategic federation participant emitting
+signatures that do not reflect genuine detections; \textbf{A4}, an external
+observer attempting dictionary attacks on emitted signatures; \textbf{A5}, a
+regulatory misuser invoking the scheme outside its stated scope. The design
+states five goals (federation detection lift; unlinkability; Byzantine
+tolerance; schema-level data minimization; scope confinement); this paper
+measures primitives relevant to detection lift and its false-positive side
+(\S\ref{sec:rq1}--\ref{sec:rq5}) and Byzantine tolerance in simulation only
+(\S\ref{sec:rq6}). Out of scope, unchanged from the design and central
+to the ethics posture (\S\ref{sec:ethics}): end-to-end encrypted content
+(no client-side scanning is proposed), fully airgapped open-source
+deployments, and harms outside the enumerated scope.
+
+\subsection{Design Under Test}
+\label{sec:design}
+The design's intuition: adversarial conversations have detectable
+\emph{form} that survives lexical evasion; that form is captured as a
+canonical feature manifest (inferred intent class, behavioral phase, anomaly
+bins, role-injection markers; full schema in the artifact's
+\texttt{spec/manifest-schema.json} and the design document); manifests are
+matched approximately across providers with banded MinHash; and
+trajectory-level structure is the layer an adversary cannot cheaply rewrite
+away. The design encodes detections into six structural classes (semantic
+reframing, lexical substitution, compositional decomposition, authority/role
+injection, hypothetical sandboxing, cumulative context poisoning); in this
+paper that taxonomy is design vocabulary only, not a validated
+classification~\cite{medredteam2026}. The design is a runtime layer,
+orthogonal to training-time
+alignment~\cite{opencharacter2025,inoculation2025}.
+
+\textbf{Signature primitive.} Cryptographic hashes have zero tolerance for
+input drift across heterogeneous providers, so the design adopts
+locality-sensitive hashing~\cite{broder1997}. With $J$ the Jaccard
+similarity between two feature manifests and a MinHash signature of length
+$L = b\cdot r$ split into $b$ bands of $r$ rows, the candidate-match
+probability is the S-curve
+\begin{equation}
+P_{\text{match}}(J;\, b, r) \;=\; 1 - (1 - J^{r})^{b},
+\label{eq:lsh-banded}
+\end{equation}
+with inflection $J^\star \approx (1/b)^{1/r}$; the per-comparison FPR is
+bounded by $P_{\text{match}}$ at the maximum benign Jaccard. The design
+recommended $(b,r) = (16,16)$ at $L = 256$, placing $J^\star \approx 0.841$.
+The unstated empirical premise, that manifests of related adversarial
+conversations achieve Jaccard near $J^\star$ while benign pairs stay below,
+is what \S\ref{sec:rq2} tests. A synthetic sanity check confirms the
+implementation follows Eq.~\eqref{eq:lsh-banded} (within 0.05 at every
+tested $J$) and already hints at the problem: even under synthetic Jaccard
+distributions constructed to be favorable, recall at the recommended point
+is only 0.085. The design's emission/receive/match protocol, wire format,
+decision rule (a match enqueues independent human investigation, never
+automatic enforcement), and privacy invariant (no raw text or user identity
+in any payload) are retained in the design document and the long-form
+draft; they are design context, not evaluated systems.
+
+\textbf{Trajectory hypothesis.} Grooming escalates through documented
+phases; the design asserted that phase \emph{transitions} carry the
+detection signal and are structurally expensive to evade (destroying the
+trajectory destroys the attack), treating that layer as the one an adversary
+cannot cheaply rewrite away.
+Empirically this hypothesis earns: no clean-data lift (\S\ref{sec:rq3}), a
+small order-sensitivity asymmetry, and a robustness advantage that matched
+controls attribute to conversation-level averaging rather than order
+information (\S\ref{sec:rq4}).
+
+% =====================================================================
+\section{Data and Methods}
+\label{sec:methods}
+
+All numbers are produced by scripts in the artifact's \texttt{experiments/}
+directory and written to JSON result files; each result table names its
+source file, tables are machine-generated from the JSONs, and
+\texttt{scripts/check\_claims.py} verifies the headline numbers
+(\S\ref{sec:openscience}).
+
+\textbf{Data.} The PAN 2012 Sexual Predator Identification
+corpus~\cite{villatoro2012} (66{,}927 chat conversations from the training
+partition, roughly 3\% involving a labeled predator author) is the
+substrate for all real-data claims. PAN 2012 is public, open research data
+and also sensitive online-safety material: the artifact does not
+redistribute it, no raw dialogue appears in this paper or any output, and
+all reported quantities are aggregate metrics, structural labels, or counts.
+GT-HarmBench~\cite{gtharmbench2026}, a gated dataset of game-theoretic
+scenarios, supplies payoff matrices for the analytical F3 result only.
+% TODO(bib): verify gtharmbench2026 identifier; load-bearing for S5.6.
+
+\textbf{Splits.} The \emph{author-disjoint} 80/20 split assigns all of a
+predator author's conversations to one side (113 train / 29 test authors;
+13{,}202 test conversations, 219 positive; benign conversations, which have
+no predator author, split 80/20 by conversation ID) and is used by the
+MinHash frontier, the FP-substrate analysis, the sweep replication, and all
+control experiments. The \emph{stratified conversation-level} split (13{,}387
+test conversations, 404 positive) is used by the trajectory-lift experiment
+and the original sweep and is flagged wherever used. Split membership is
+fixed across perturbation conditions (split-ID hashes and a
+zero-author-overlap check in the sanity files).
+
+\textbf{Models.} Per-message baseline: TF-IDF over character 3--5-grams
+(10{,}000 features), LinearSVC on message labels, conversation scored by the
+mean message decision value. Sequence model: logistic regression over a
+position-weighted mean of message TF-IDF vectors, a deliberately simple
+instantiation of the trajectory idea. Controls (\S\ref{sec:rq4}): max and
+top-5-mean aggregations of the same message scores; an order-invariant
+concatenated-text classifier; an order-invariant \emph{conversation-mean}
+twin of the sequence model (identical except position weights removed, so
+their comparison isolates order information); and the sequence model scored
+on order-shuffled messages. Per-model thresholds are calibrated once on the
+clean test set at FPR $\leq 0.05$ and held fixed.
+
+\textbf{MinHash frontier.} Conversations are shingled into $L=256$ MinHash
+signatures; the 1{,}720 valid training-positive signatures form the
+shared reference pool; each test conversation queries the pool with banded
+matching at five $(b,r)$ settings. This instantiates the design's
+cross-provider match primitive on real text.
+
+\textbf{Perturbation sweeps.} Models are trained once on clean data; test
+positives are perturbed at inference (an adaptive operator perturbs their
+own conversations; negatives stay clean) at strengths
+$p \in \{0.15, 0.35, 0.60\}$, five seeds each. Family 1, \emph{discourse
+noise}: message truncation, retrieval-swap of training-split benign
+messages, message drop (with a floor guard), adjacent-transposition order
+jitter. Family 2, \emph{surface rewrite} (rule-based, local): bidirectional
+chat-register substitutions from a fixed neutral table, casing/punctuation
+jitter, message split/merge. Sanity files record per-condition modification
+rates, token-Jaccard, order changes, and length shifts.
+
+\textbf{Paired statistics.} For each strength and comparator, a stratified
+paired bootstrap ($B{=}1000$; positives/negatives resampled separately with
+identical indices for every model; perturbed scores seed-averaged) yields
+95\% CIs for (sequence AUC drop $-$ comparator AUC drop); a CI below zero
+favors the sequence model.
+
+\textbf{FP substrate.} From author-disjoint test negatives, a
+\emph{structurally similar benign} pool (3{,}979 conversations) is selected
+by neutral lexical filters (age discussion, meeting plans,
+secrecy/isolation, romantic language), never classifier predictions,
+against a random benign control pool (9{,}004); three seeds sample 500 per
+set; both detectors are evaluated with Wilson 95\% intervals. PAN negatives
+are a proxy for sensitive benign populations; the corpus has no population
+labels.
+
+\textbf{Simulation and analytical components.} Reputation-weighted
+aggregation is simulated under coordinated mis-emission with SPRT or
+EMA-plus-Hoeffding isolation (parameters in the result files); the F3
+mechanism is applied to GT-HarmBench $2\times2$ matrices analytically. No
+LLM behavior is measured in either.
+
+% =====================================================================
+\section{Results}
+\label{sec:results}
+
+\subsection{RQ1: Per-message detection on clean data}
+\label{sec:rq1}
+Strong. The per-message LinearSVC reaches AUC 0.986 with recall 0.948 at
+FPR $\leq 0.05$ (Table~\ref{tab:clean}). Behavioral structure in real
+adversarial conversations is detectable at the local-classifier level. Two
+qualifications: precision at that operating point is 0.412 (most alerts
+are false positives at PAN's $\sim$3\% base rate), and nothing here speaks
+to robustness (\S\ref{sec:rq4}) or cross-provider matching
+(\S\ref{sec:rq2}).
+
+\begin{table}[!t]
+\centering
+\footnotesize
+\resizebox{\columnwidth}{!}{%
+\input{paper/tables/tab_clean_detection}}
+\caption{Clean-data detection (conversation-level split; operating points at
+FPR $\leq 0.05$). Source: \texttt{trajectory\_lift.json}.}
+\label{tab:clean}
+\end{table}
+
+\subsection{RQ2: MinHash matching on real conversations}
+\label{sec:rq2}
+Fails; this is a headline finding. Table~\ref{tab:frontier} and
+Figure~\ref{fig:frontier} give the full operating frontier on the
+author-disjoint split (13{,}202 test conversations against the pool of
+1{,}720 training-positive signatures). At the design-recommended $(16,16)$,
+recall is \textbf{0.018} at FPR 0.0013; recall does not become usable until
+$(128,2)$, where it is 0.92 at FPR \textbf{0.988}: the detector fires on
+essentially everything. No point combines usable recall with tolerable FPR.
+The mechanism is visible in the Jaccard statistics: real conversations
+executing related adversarial behavior do not share enough surface
+structure; inter-conversation Jaccard sits far below the $J^\star \approx
+0.841$ inflection, so the S-curve, which behaves exactly as designed,
+is evaluated in a region where it correctly returns no-match. The primitive
+is not broken; the design's assumption about where real adversarial Jaccard
+mass lies is falsified. A successor must change the representation or
+abandon set-similarity matching for this layer.
+
+\begin{table}[!t]
+\centering
+\footnotesize
+\input{paper/tables/tab_minhash_frontier}
+\caption{Banded-MinHash frontier on real PAN 2012 (author-disjoint split,
+$L=256$). Source: \texttt{m3\_frontier.json}.}
+\label{tab:frontier}
+\end{table}
+
+\begin{figure}[!t]
+\centering
+% Column-width figure generated from m3_frontier.json by
+% scripts/build_paper_figures.py (deterministic; no experiment re-run).
+\includegraphics[width=\columnwidth]{paper/figures/fig_frontier_column.pdf}
+\caption{Recall/FPR frontier of the signature primitive on real text
+(symlog FPR axis; points labeled with $(b,r)$). Generated from
+\texttt{m3\_frontier.json}.}
+\label{fig:frontier}
+\end{figure}
+
+\subsection{RQ3: Clean-data trajectory lift}
+\label{sec:rq3}
+Negative. The sequence model reaches AUC 0.977 vs.\ the baseline's 0.986;
+F1 lift at the FPR $\leq 0.05$ operating point is $-0.023$ with bootstrap
+95\% CI $[-0.042, -0.002]$ (Table~\ref{tab:clean}): the interval lies
+below zero. This falsifies \emph{this} position-weighted representation as a
+clean-data improvement, not trajectory modeling in general. One structural
+asymmetry survives: the baseline is order-invariant by construction, while
+the sequence model loses about one point of recall (0.933 $\to$ 0.923) under
+adversarial order shuffling, and an adversary who destroys conversational
+order also destroys the escalation structure the attack requires. That
+asymmetry is what the perturbation experiments probe next.
+
+\subsection{RQ4: Robustness under perturbation is real, but it is
+aggregation, not trajectory}
+\label{sec:rq4}
+
+\textbf{The sweep and its author-disjoint replication.}
+Table~\ref{tab:sweeps} reports both splits. On the conversation-level split
+the baseline's AUC falls 0.986 $\to$ 0.912 at heavy noise while the sequence
+model falls 0.977 $\to$ 0.940; the sequence drop is smaller at every
+strength (heavy: 0.037 vs.\ 0.075). Under the author-disjoint split, clean
+AUCs compress (0.975/0.971) and the ordering is unchanged (heavy drop 0.029
+vs.\ 0.058, roughly half). The result was not author leakage. Earlier
+single-point observations (discourse noise 0.92 $\to$ 0.79; an
+NCMEC-prior-constrained set collapsing the per-message signal to 0.13 while
+the sequence model retained 0.57) are consistent but superseded by the
+dose-response sweeps.
+
+\begin{table}[!t]
+\centering
+\footnotesize
+\resizebox{\columnwidth}{!}{%
+\input{paper/tables/tab_perturbation_sweeps_merged}}
+\caption{Discourse-noise sweeps on both splits: mean AUC over 5 seeds (AUC
+drop from clean in parentheses). Sources: \texttt{perturbation\_sweep.json},
+\texttt{perturbation\_sweep\_author\_disjoint.json}.}
+\label{tab:sweeps}
+\end{table}
+
+\textbf{Matched controls change the attribution.} Table~\ref{tab:controls}
+evaluates seven models/controls on the same author-disjoint split, perturbed
+conversations, and seeds; Table~\ref{tab:paired} gives paired bootstrap CIs
+on the AUC-drop differences. Two facts. First, the sequence model's
+advantage is statistically resolved against every per-message comparison:
+mean, max, top-5, and the concatenation classifier (the best clean model at
+AUC 0.989, but the \emph{worst} degrader at heavy noise, 0.087), with all
+CIs excluding zero in its favor. Second, the order-invariant
+conversation-mean control, identical to the sequence model except that
+position weights are removed, degrades \emph{less} than the sequence model
+at every strength (paired CI excludes zero in the control's favor; heavy:
+$+0.004$, CI $[+0.002, +0.006]$), and the shuffled-order control tracks the
+sequence model almost exactly (heavy drop 0.030 vs.\ 0.029). The tested
+sequence model barely uses order, and its position weights cost a small
+amount of robustness rather than buying any.
+
+\begin{table}[!t]
+\centering
+\footnotesize
+\resizebox{\columnwidth}{!}{%
+\input{paper/tables/tab_perturbation_controls}}
+\caption{Aggregation/order controls (author-disjoint, discourse noise, 5
+seeds): clean AUC and mean AUC drop per strength. Source:
+\texttt{perturbation\_model\_controls.json}.}
+\label{tab:controls}
+\end{table}
+
+\begin{table}[!t]
+\centering
+\scriptsize
+\resizebox{\columnwidth}{!}{%
+\input{paper/tables/tab_perturbation_paired_tests}}
+\caption{Paired stratified bootstrap ($B{=}1000$) 95\% CIs for (sequence AUC
+drop $-$ comparator drop); negative favors the sequence model; $^*$ = CI
+excludes zero. Source: \texttt{perturbation\_paired\_tests.json}.}
+\label{tab:paired}
+\end{table}
+
+\begin{figure}[!t]
+\centering
+% Column-width figure generated from perturbation_model_controls.json by
+% scripts/build_paper_figures.py (deterministic; no experiment re-run).
+\includegraphics[width=\columnwidth]{paper/figures/fig_controls_column.pdf}
+\caption{AUC vs.\ perturbation strength for all models/controls
+(author-disjoint split). Generated from
+\texttt{perturbation\_model\_controls.json}.}
+\label{fig:controls}
+\end{figure}
+
+\textbf{A second perturbation family does not discriminate.} Under the
+rule-based surface-rewrite/segmentation family, every model is essentially
+unaffected (largest mean AUC drop under 0.002;
+\texttt{perturbation\_second\_family.json}). Character n-gram features are
+insensitive to this rewriting: mild good news for all detectors, but no
+evidence either way on the robustness ordering, which therefore rests on the
+discourse-noise family.
+
+\textbf{What RQ4 supports.} \emph{Conversation-level averaging, training
+and scoring on features averaged over the whole conversation, degrades
+roughly half as fast as per-message scoring under discourse noise, on both
+splits, with paired statistical support; the order information in the tested
+sequence model contributes nothing to that robustness.} The families are
+rule-based, not adaptive; paraphrase attacks are untested; and a genuinely
+order-sensitive architecture remains unevaluated: the trajectory
+hypothesis proper is still open, but it has no support from this data.
+
+\subsection{RQ5: False positives on structurally similar benign
+conversations}
+\label{sec:rq5}
+Not elevated on this proxy: the effect runs the other way. Benign
+conversations that surface-resemble grooming transcripts (age talk, meeting
+plans, secrecy, romantic language) proxy the populations a deployed detector
+would most plausibly harm. Table~\ref{tab:fps}: the classifier's FPR on the
+keyword-matched set is \textbf{0.030} vs.\ \textbf{0.055} on random controls,
+consistently across seeds; the MinHash primitive flags almost nothing in
+either set (0 and 1 conversations total), as RQ2 predicts. This weakens the
+assumption that surface-similar benign traffic is automatically higher-risk
+under a lexical detector (possibly because keyword-matched negatives
+resemble the classifier's training negatives), but it does not clear the
+deployment concern: PAN negatives cannot label the real populations of
+concern, and external sensitive-population substrates (under ethics review)
+would be more probative. What it establishes is the method:
+substrate-conditional FPR measurement with controls is cheap, and any
+deployment claim would need it on real substrates.
+
+\begin{table}[!t]
+\centering
+\footnotesize
+\resizebox{\columnwidth}{!}{%
+\input{paper/tables/tab_fp_substrate}}
+\caption{FP substrate analysis (author-disjoint; $n{=}500$/set; 3 seeds;
+pooled Wilson 95\% CIs). Source: \texttt{fp\_substrate.json}.}
+\label{tab:fps}
+\end{table}
+
+\subsection{RQ6: Simulation and analytical components}
+\label{sec:rq6}
+These exercise mechanisms under stated parameters; they are not deployment
+evidence and must not be aggregated with the real-data findings.
+\emph{Byzantine tolerance (simulation):} network detection quality degrades
+$<5\%$ up to an empirical Byzantine fraction $\beta^\star = 0.5$ (stealth
+adversary: 0.4). \emph{SPRT vs.\ Hoeffding (simulation, weak comparator):}
+the sequential test isolates mis-emitting senders $2.27\times$ faster (mean
+isolation step) with SPRT false-isolation $\leq 0.044$, but the Hoeffding
+baseline's own false-isolation rate is extreme ($\approx 0.996$) because it
+re-applies a fixed-$n$ threshold to a high-variance EMA at every step with
+no exoneration state; this is expected from the baseline's definition, the
+IID fixed-$n$ assumption behind the bound does not hold sequentially, and
+the false-isolation gap should not be quoted as a finding.
+\emph{F3 reciprocity (analytical):} the design's payoff-perturbation
+mechanism raises equilibrium cooperation on
+GT-HarmBench~\cite{gtharmbench2026} $2\times2$ matrices by 0.184 overall and
+cuts Prisoner's Dilemma defection from 1.0 to 0.57. Mechanism design on
+matrices~\cite{ostrom1990}; nothing about LLM or provider behavior.
+
+% =====================================================================
+\section{Discussion}
+\label{sec:discussion}
+
+\textbf{What the decomposition means.} The design bundled three bets:
+(i) behavioral structure is detectable; (ii) it can be shared as approximate
+set-similarity signatures; (iii) trajectory modeling is the robust layer.
+Bet (i) holds on clean historical data (RQ1). Bet (ii) fails on real text
+(RQ2), at the representation level, not the primitive level, which
+redirects rather than ends the work: the open problem is a representation
+under which related-but-distinct adversarial conversations achieve high
+similarity while benign traffic does not, and RQ5 shows benign structural
+look-alikes are not automatically the binding constraint. Bet (iii) fails in
+the form the design stated it: no clean lift (RQ3), and the robustness that
+appeared to support it is attributable to conversation-level averaging
+(RQ4). What survives is smaller but useful to a detection engineer: train
+and score at the conversation level over averaged features and the detector
+degrades roughly half as fast under discourse noise. Whether a genuinely
+order-sensitive architecture can add robustness \emph{beyond} that
+aggregation effect is now the precise, testable form of the trajectory
+hypothesis.
+
+\textbf{False positives frame everything.} At PAN's class balance even the
+strong RQ1 classifier yields precision 0.41 at 5\% FPR: most alerts are
+false. Any system built on these primitives is a review-queue prioritizer,
+not an enforcement trigger; the design's own rule that a match enqueues
+independent human investigation is the minimum viable posture. The design's
+failure-mode catalog (signature pollution, FP cascades, free-riding, scope
+creep, replay/dictionary attacks, trust-root failure) motivated the M8
+simulations and the RQ5 method; its mitigations (trust decay, per-class
+FP ceilings, TTLs, rate limits, minimum-entropy gating, multi-root PKI)
+remain design context, with one measured correction: the Hoeffding-derived
+isolation rule false-isolates almost every honest sender when applied
+sequentially (\S\ref{sec:rq6}), so any deployment of it would need
+sequential correction (which is what the SPRT variant is).
+
+% =====================================================================
+\section{Limitations}
+\label{sec:limitations}
+(1) \emph{Corpus vintage and adversary mismatch.} PAN 2012 records human
+grooming in 2012-era chat; transfer to current platforms, other languages,
+and hypothesized agentic (A2) operations is untested. (2) \emph{Rule-based
+perturbation families only.} The robustness ordering rests on the
+discourse-noise family; the surface-rewrite family left every model
+unaffected and is uninformative for the comparison; paraphrase/LLM-rewrite
+and genuinely adaptive attacks are untested and could reverse the ordering.
+(3) \emph{Split coverage.} The robustness result replicates author-disjoint,
+but clean-data RQ1/RQ3 numbers are reported on the conversation-level split
+and may be optimistic (author-disjoint clean AUCs are lower: 0.975/0.971).
+(4) \emph{Weak sequence model, with a measured consequence.} The tested
+representation barely uses order (shuffled control tracks it; position
+weights slightly hurt robustness), so RQ4's attribution finding is about
+this model class; a genuinely order-sensitive encoder is unevaluated in both
+directions. (5) \emph{Proxy substrate.} RQ5's benign substrate is
+keyword-selected PAN negatives, not real sensitive populations, and seeds
+resample overlapping pools. (6) \emph{Simulation/analytical parameters.}
+M8 and F3 hold under stated parameters only.
+
+% =====================================================================
+\section{Conclusion}
+\label{sec:conclusion}
+We evaluated a proposed cross-provider behavioral-signature telemetry design
+against real adversarial data and adaptive perturbation. The design's core
+cross-provider primitive fails on real conversations at any deployable
+false-positive rate; its trajectory hypothesis earns no support in either
+tested form: no clean-data lift, and a perturbation-robustness advantage
+that matched controls attribute to conversation-level averaging rather than
+order information. What survives is a decomposition useful to anyone
+building in this space: per-message behavioral detection works on clean
+historical data; conversation-level averaging is the robust way to score it
+under discourse noise; benign structural look-alikes did not absorb
+disproportionate false positives on the available proxy; and every negative
+result is documented with the same care as the positive ones. The evidence
+supports no deployment claim. Two open questions are now precise: a
+representation under which real adversarial conversations actually cluster,
+and an order-sensitive architecture that beats the conversation-mean control
+under the same paired-test framework. We state both so that this design, or
+its successor, can be falsified faster next time.
+
+% =====================================================================
+\section{Ethical Considerations}
+\label{sec:ethics}
+
+\textbf{Data handling.} All real-data experiments use PAN 2012, which is
+public, open research data that is also sensitive online-safety material
+involving real victims and offenders. The artifact does not redistribute the corpus;
+no raw dialogue appears in this paper, the artifact's documentation, or any
+committed result file; all reported quantities are aggregate metrics,
+structural labels, and counts. No abuse content, grooming scripts, or
+operational evasion material was generated: the perturbation families are
+generic discourse/surface noise, not offender tradecraft, and no corpus text
+was sent to external services.
+
+\textbf{No client-side scanning; no E2EE weakening.} Neither the design
+under test nor this evaluation involves scanning end-to-end encrypted
+content or client devices, and nothing here proposes weakening encryption;
+everything operates over data a platform can already observe under its own
+policies.
+
+\textbf{No deployment recommendation.} The evidence would not support one:
+the signature primitive fails on real data, and the robustness finding
+spans rule-based families only. The design document's latency, throughput,
+and topology targets are design assumptions from production
+analogues~\cite{photodna2023}; no implementation was built or measured, and
+none of those numbers is a claim of this paper.
+
+\textbf{False-positive harms are the central deployment risk.} Behavioral
+detectors threaten specific benign populations whose conversations share
+surface structure with abuse transcripts: minors discussing age and
+relationships, LGBTQ+ youth seeking support, mental-health peer support,
+harm-reduction discussion, journalism, and legitimate research.
+\S\ref{sec:rq5} measures a proxy and finds no elevated FPR, but the proxy
+cannot label the real populations, and nothing here clears the risk; any
+deployment-oriented study would need substrate-conditional FP measurement on
+real sensitive-population data under ethics review.
+
+\textbf{Human review, appeal, no automated enforcement.} A signature or
+classifier match must never trigger enforcement automatically; the design's
+own enqueue-for-independent-human-investigation rule is the minimum posture,
+fully automated enforcement would additionally be in tension with GDPR
+Article~22, and any future system would require an accessible appeals path
+and multi-stakeholder scope governance with civil-society representation on
+the model of Lantern's externally reviewed governance~\cite{bsrhria}.
+
+\textbf{No compliance claims.} This work does not establish compliance with
+the EU AI Act, GDPR, the UK Online Safety Act, or any other
+regime~\cite{euaiact2026,gpaicop2026}; conformity assessment is
+participant-level work. The design document's compliance mapping is
+superseded by these non-claims.
+
+% =====================================================================
+\section{Open Science}
+\label{sec:openscience}
+
+\ifanonymous
+The artifact is available to reviewers via the anonymized link provided in
+the submission system. % TODO(anonymization): insert anonymized artifact URL.
+\else
+The artifact is public~\cite{artifact2026}.
+\fi
+It contains: every experiment script (\texttt{experiments/}), every result
+JSON this paper cites (\texttt{experiments/results/}), the perturbation
+tools (\texttt{tools/}), the machine-generated paper tables and their
+generator (\texttt{scripts/build\_paper\_tables.py}), a truth ledger and
+validity-boundary statement, per-file data-provenance documentation, and
+both paper sources (this one and the long-form v9 draft, whose appendix
+carries the full feature-manifest schema alongside
+\texttt{spec/manifest-schema.json}).
+
+\textbf{Claim verification.} \texttt{scripts/check\_claims.py} re-derives
+every headline number in the repository README (the same numbers reported
+here) from the committed result JSONs and fails on any drift; at this
+writing it passes 31/31 checks. Result tables in this paper are generated
+from the same JSONs, so table cells cannot silently diverge from the
+evidence.
+
+\textbf{Reproduction without restricted data.}
+\texttt{scripts/reproduce\_public.sh} runs everything that needs no
+restricted data (the synthetic S-curve sanity check and the M8
+Byzantine/SPRT simulations) and runs the F3 analysis automatically if the
+gated GT-HarmBench CSV is present, skipping it gracefully otherwise.
+
+\textbf{Reproduction with PAN 2012.} The corpus is distributed by the PAN
+organizers and is not redistributed in the artifact; the artifact documents
+how to obtain it and where to place it. With it in place, the detection,
+frontier, sweep, control, and FP-substrate experiments
+(\texttt{exp\_trajectory\_lift.py}, \texttt{exp\_m3\_*.py},
+\texttt{exp\_perturbation\_*.py}, \texttt{exp\_fp\_substrate.py}) reproduce
+every real-data claim; each fails gracefully with setup instructions if the
+data is absent. No script prints raw corpus text; sanity-check files verify
+this posture per experiment. The included result JSONs let readers audit
+every number without any restricted data. Appendix~\ref{app:artifact} gives
+environment details, exact commands, and expected outputs.
+
+% =====================================================================
+\bibliographystyle{plain}
+\bibliography{paper/references}
+
+% =====================================================================
+\appendix
+\section{Artifact Appendix}
+\label{app:artifact}
+
+\textbf{Environment.} Python 3.10+ with \texttt{numpy},
+\texttt{scikit-learn}, \texttt{matplotlib} (pinned in
+\texttt{requirements.txt}); no GPU; a laptop-class machine suffices (the
+heaviest experiments train linear models over $\sim$700k messages and run in
+tens of minutes). LaTeX (TeX Live) to build the paper.
+
+\textbf{Setup.} \texttt{pip install -r requirements.txt} at the repository
+root.
+
+\textbf{Reproduce without restricted data.}
+\texttt{bash scripts/reproduce\_public.sh} runs the synthetic S-curve
+check and the M8 simulations; it runs F3 if the gated GT-HarmBench CSV is
+present at the documented path, else skips it with an explanation. Expected
+outputs land in \texttt{experiments/results/} and
+\texttt{validation/synthetic/results/}.
+
+\textbf{Reproduce real-data claims.} Obtain PAN 2012 from the PAN organizers
+(documented in \texttt{data/pan12/README.md}), place the training XML and
+predator list under \texttt{data/pan12/train/}, then run each of the
+following under \texttt{experiments/}:
+\begin{itemize}\footnotesize
+\item \texttt{exp\_trajectory\_lift.py}
+\item \texttt{exp\_m3\_author\_split.py}, \texttt{exp\_m3\_frontier.py}
+\item \texttt{exp\_perturbation\_sweep.py}
+\item \texttt{exp\_perturbation\_sweep\_author\_disjoint.py}
+\item \texttt{exp\_perturbation\_model\_controls.py}
+\item \texttt{exp\_perturbation\_second\_family.py}
+\item \texttt{exp\_fp\_substrate.py}
+\end{itemize}
+Each writes JSON + figures to \texttt{experiments/results/} and fails
+gracefully with setup instructions if the data is absent.
+
+\textbf{Claim-check procedure.} \texttt{python3 scripts/check\_claims.py}
+(expects 31/31 OK); \texttt{python3 scripts/build\_paper\_tables.py}
+regenerates every result table in \texttt{paper/tables/} from the JSONs.
+
+\textbf{Known limitations.} PAN 2012 and GT-HarmBench cannot be
+redistributed; exact figure rendering may vary with matplotlib version;
+LinearSVC training is deterministic under the pinned seed (20260514) but
+floating-point differences across BLAS builds can perturb the last decimal
+of some metrics.
+
+\end{document}

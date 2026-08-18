@@ -1,11 +1,33 @@
 # ==========================================
 # Large Data & Datasets (Keeps things local)
 # ==========================================
-data/
+# Restricted/raw corpora (PAN 2012 XML, GT-HarmBench CSV) and other bulk data
+# are ignored by extension so they are never committed by accident.
 *.csv
 *.json
 *.zip
 *.tar.gz
+
+# Explicit exceptions: derived Tier 1/2 files and docs that ARE tracked.
+# Add new intentionally-tracked files here, or `git add -f` will be needed
+# and future commits may silently drop them.
+!README.md
+!pan12/README.md
+!pan12/test/readme.md
+!pan12/train/README.md
+!gt_harmbench/README.md
+!agentic_ncmec/pan_ncmec_trajectories.jsonl
+!pan_annotated/adapted_trajectories.jsonl
+!pan_annotated/pan_manifests_v2.jsonl
+!pan_annotated/regenerated_trajectories.jsonl
+
+# regenerated_trajectories_noisy.jsonl is deliberately excluded (not just
+# left un-excepted): it was found to contain verbatim excerpts of real PAN
+# 2012 messages (retrieval-swap noise injection sources directly from the
+# restricted corpus) — see docs/data_audit.md. Untracked pending git-history
+# purge and remote cleanup; do not re-add without regenerating it from a
+# synthetic-only message bank first.
+pan_annotated/regenerated_trajectories_noisy.jsonl
 
 # ==========================================
 # Python / Data Science Environment

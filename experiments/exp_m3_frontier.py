@@ -275,8 +275,8 @@ def main() -> None:
         "recommended_result": recommended_rec,
         "best_compliant_point": best_compliant,
         "figures": [
-            str(OUT / "m3_frontier.pdf"),
-            str(OUT / "m3_frontier.png"),
+            str((OUT / "m3_frontier.pdf").relative_to(ROOT)),
+            str((OUT / "m3_frontier.png").relative_to(ROOT)),
         ],
         "caveats": [
             "All operating points share L = b*r = 256, so a single MinHash "

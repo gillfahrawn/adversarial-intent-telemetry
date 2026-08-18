@@ -27,6 +27,7 @@ SEED = 20260514
 
 # ── Output ─────────────────────────────────────────────────────────────────────
 SCRIPT_DIR = Path(__file__).parent
+ROOT = SCRIPT_DIR.parent
 OUT = SCRIPT_DIR / "results"
 OUT.mkdir(parents=True, exist_ok=True)
 
@@ -180,8 +181,8 @@ def main() -> None:
             "real deployments have partial observability.",
         ],
         "figures": [
-            str(OUT / "m8_byzantine.pdf"),
-            str(OUT / "m8_byzantine.png"),
+            str((OUT / "m8_byzantine.pdf").relative_to(ROOT)),
+            str((OUT / "m8_byzantine.png").relative_to(ROOT)),
         ],
         "full_results": {
             "eps_star": EPS_STAR,

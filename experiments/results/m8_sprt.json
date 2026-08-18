@@ -209,5 +209,8 @@
     "sprt_vs_hoeffding_speedup_factor": 2.2738700733986144,
     "stealth_operational_beta_star": 0.4,
     "sprt_false_isolation_rate_max": 0.04449230769230769
+  },
+  "methodology_notes": {
+    "hoeffding_baseline_false_isolation": "The Hoeffding baseline's false-isolation rate (~0.996) is expected from this baseline's definition, not a bug in the SPRT results. The baseline thresholds an EMA (lambda=0.1) of single Bernoulli observations at mean(active) - eps_star. The steady-state EMA std for Bernoulli(0.85) is sqrt(lambda/(2-lambda) * p(1-p)) ~= 0.082, i.e. almost exactly eps_star=0.083, and the test is re-applied at every one of 500 post-warmup timesteps with no exoneration state \u2014 so nearly every honest sender eventually dips below the threshold once and is permanently isolated. The Hoeffding n=500 derivation assumes a fixed-n test on an average whose variance shrinks with n; that assumption is absent here. exp_m8_byzantine.py does not show this failure because it averages m=10 observations per timestep against a fixed threshold. Consequence: the mean-isolation-step comparison (SPRT ~2.3x faster on Byzantine senders) is meaningful, but the Hoeffding baseline is a weak comparator on false-isolation rate and the SPRT-vs-Hoeffding false-isolation gap should not be quoted as a headline result."
   }
 }

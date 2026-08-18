@@ -146,7 +146,8 @@ def bootstrap_f1_and_lift(y_true: np.ndarray, preds_base: np.ndarray,
         "lift_mean": float(lift_boot.mean()),
         "lift_ci":   [float(np.percentile(lift_boot, 2.5)),
                       float(np.percentile(lift_boot, 97.5))],
-        "lift_ci_excludes_zero": (float(np.percentile(lift_boot, 2.5)) > 0.0),
+        "lift_ci_excludes_zero": (float(np.percentile(lift_boot, 2.5)) > 0.0
+                                  or float(np.percentile(lift_boot, 97.5)) < 0.0),
     }
 
 
@@ -435,8 +436,8 @@ def main() -> None:
             "separately from the F1 lift claim."
         ),
         "figures": [
-            str(OUT / "trajectory_lift.pdf"),
-            str(OUT / "trajectory_lift.png"),
+            str((OUT / "trajectory_lift.pdf").relative_to(ROOT)),
+            str((OUT / "trajectory_lift.png").relative_to(ROOT)),
         ],
         "full_results": {
             "n_total": len(conversations),

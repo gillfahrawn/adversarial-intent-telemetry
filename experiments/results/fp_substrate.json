@@ -1,0 +1,195 @@
+{
+  "experiment": "fp_substrate",
+  "substrate_type": "structurally_similar_benign",
+  "dataset": "PAN 2012 SPI training XML, author-disjoint split (same as exp_m3_author_split.py); substrate/control drawn from test-split negatives only",
+  "split_type": "author_disjoint_80_20",
+  "split_seed": 20260514,
+  "sampling_seeds": [
+    0,
+    1,
+    2
+  ],
+  "n_substrate": 500,
+  "n_control": 500,
+  "substrate_pool_size": 3979,
+  "control_pool_size": 9004,
+  "keyword_filter_used": {
+    "age_discussion": [
+      "\\basl\\b",
+      "\\ba/s/l\\b",
+      "\\bhow old (are|r) (you|u)\\b",
+      "\\b(i'?m|i am|im) 1[0-7]\\b",
+      "\\b1[0-7] ?(yo|y/o|yrs? old|years old)\\b"
+    ],
+    "meeting_plans": [
+      "\\bmeet (up|me|you|u)\\b",
+      "\\bcome over\\b",
+      "\\bpick (you|u) up\\b",
+      "\\bmy (address|place|house)\\b"
+    ],
+    "secrecy_isolation": [
+      "\\b(our|a) secret\\b",
+      "\\bdon'?t tell\\b",
+      "\\bhome alone\\b",
+      "\\bparents (aren'?t|are not|not) (home|here)\\b"
+    ],
+    "romantic_relationship": [
+      "\\b(boy|girl)friend\\b",
+      "\\blove (you|u)\\b",
+      "\\bmiss (you|u)\\b",
+      "\\bkiss\\b",
+      "\\bcute\\b"
+    ]
+  },
+  "filter_category_hits_in_pool": {
+    "age_discussion": 3729,
+    "meeting_plans": 149,
+    "secrecy_isolation": 29,
+    "romantic_relationship": 252
+  },
+  "detectors": {
+    "minhash_16_16": "banded MinHash signature match at (b=16, r=16) against federated pool of training-positive signatures (protocol primitive)",
+    "classifier_fpr05": "per-message LinearSVC, threshold at FPR<=0.05 calibrated on full author-disjoint test set (threshold=-0.7706, overall test FPR=0.0468)"
+  },
+  "per_seed": [
+    {
+      "sampling_seed": 0,
+      "n_substrate": 500,
+      "n_control": 500,
+      "minhash_16_16": {
+        "structural_FPR": 0.0,
+        "structural_FPR_wilson95": [
+          0.0,
+          0.007624618530903363
+        ],
+        "control_FPR": 0.002,
+        "control_FPR_wilson95": [
+          0.000353127309584542,
+          0.011240992747195207
+        ],
+        "n_structural_fp": 0,
+        "n_control_fp": 1
+      },
+      "classifier_fpr05": {
+        "structural_FPR": 0.032,
+        "structural_FPR_wilson95": [
+          0.01979134135128301,
+          0.05134530159364255
+        ],
+        "control_FPR": 0.056,
+        "control_FPR_wilson95": [
+          0.03902536261505807,
+          0.07974529864038413
+        ],
+        "n_structural_fp": 16,
+        "n_control_fp": 28
+      }
+    },
+    {
+      "sampling_seed": 1,
+      "n_substrate": 500,
+      "n_control": 500,
+      "minhash_16_16": {
+        "structural_FPR": 0.0,
+        "structural_FPR_wilson95": [
+          0.0,
+          0.007624618530903363
+        ],
+        "control_FPR": 0.0,
+        "control_FPR_wilson95": [
+          0.0,
+          0.007624618530903363
+        ],
+        "n_structural_fp": 0,
+        "n_control_fp": 0
+      },
+      "classifier_fpr05": {
+        "structural_FPR": 0.03,
+        "structural_FPR_wilson95": [
+          0.018263049234083534,
+          0.04890409218496562
+        ],
+        "control_FPR": 0.046,
+        "control_FPR_wilson95": [
+          0.030844883399787512,
+          0.06807827022627275
+        ],
+        "n_structural_fp": 15,
+        "n_control_fp": 23
+      }
+    },
+    {
+      "sampling_seed": 2,
+      "n_substrate": 500,
+      "n_control": 500,
+      "minhash_16_16": {
+        "structural_FPR": 0.0,
+        "structural_FPR_wilson95": [
+          0.0,
+          0.007624618530903363
+        ],
+        "control_FPR": 0.0,
+        "control_FPR_wilson95": [
+          0.0,
+          0.007624618530903363
+        ],
+        "n_structural_fp": 0,
+        "n_control_fp": 0
+      },
+      "classifier_fpr05": {
+        "structural_FPR": 0.028,
+        "structural_FPR_wilson95": [
+          0.01675081930862122,
+          0.04644682058455155
+        ],
+        "control_FPR": 0.064,
+        "control_FPR_wilson95": [
+          0.045695733565557124,
+          0.08895293379339062
+        ],
+        "n_structural_fp": 14,
+        "n_control_fp": 32
+      }
+    }
+  ],
+  "summary": {
+    "minhash_16_16": {
+      "structural_FPR_mean": 0.0,
+      "control_FPR_mean": 0.0006666666666666666,
+      "structural_FPR_pooled_wilson95": [
+        2.168404344971009e-19,
+        0.002554524359480413
+      ],
+      "control_FPR_pooled_wilson95": [
+        0.00011768970416585435,
+        0.0037667619561685853
+      ],
+      "elevated": false,
+      "note": "Samples across seeds overlap (drawn from the same pools), so pooled CIs understate independence; per-seed rows are the primary evidence."
+    },
+    "classifier_fpr05": {
+      "structural_FPR_mean": 0.03,
+      "control_FPR_mean": 0.05533333333333334,
+      "structural_FPR_pooled_wilson95": [
+        0.02249556109992985,
+        0.03990569179798174
+      ],
+      "control_FPR_pooled_wilson95": [
+        0.044858075643366885,
+        0.06808041468699769
+      ],
+      "elevated": false,
+      "note": "Samples across seeds overlap (drawn from the same pools), so pooled CIs understate independence; per-seed rows are the primary evidence."
+    }
+  },
+  "interpretation": "If structural_FPR > control_FPR, benign conversations that share surface features with grooming transcripts absorb a disproportionate share of false positives. That is a finding motivating per-class FP ceilings and human review, not a failure of the analysis.",
+  "caveats": [
+    "PAN 2012 negatives are a proxy for sensitive benign populations (peer support, LGBTQ+ youth, harm reduction); no population labels exist in the corpus, so keyword filters only capture surface-structural similarity.",
+    "Keyword filters are deliberately over-inclusive and lexical; they are a sampling device, not a classifier.",
+    "Substrate/control samples across seeds are drawn from the same fixed pools and overlap."
+  ],
+  "figures": [
+    "experiments/results/fp_substrate.pdf",
+    "experiments/results/fp_substrate.png"
+  ]
+}

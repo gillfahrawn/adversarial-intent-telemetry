@@ -198,10 +198,10 @@
     }
   },
   "figures": [
-    "/Users/fahrawngill/Adv-Intent/Adversarial-Intent-Telemetry/experiments/results/f3_reciprocity_bars.pdf",
-    "/Users/fahrawngill/Adv-Intent/Adversarial-Intent-Telemetry/experiments/results/f3_reciprocity_bars.png",
-    "/Users/fahrawngill/Adv-Intent/Adversarial-Intent-Telemetry/experiments/results/f3_reciprocity_sweep.pdf",
-    "/Users/fahrawngill/Adv-Intent/Adversarial-Intent-Telemetry/experiments/results/f3_reciprocity_sweep.png"
+    "experiments/results/f3_reciprocity_bars.pdf",
+    "experiments/results/f3_reciprocity_bars.png",
+    "experiments/results/f3_reciprocity_sweep.pdf",
+    "experiments/results/f3_reciprocity_sweep.png"
   ],
   "full_results": {
     "baseline_per_game_full": {

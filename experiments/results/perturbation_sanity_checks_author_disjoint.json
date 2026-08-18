@@ -1,0 +1,142 @@
+{
+  "experiment": "perturbation_sanity_checks_author_disjoint",
+  "source": "exp_perturbation_sweep_author_disjoint.py (first seed of each strength)",
+  "split_hash_sha256": {
+    "train_conversation_ids": "524208efd85320f13ef13fa3496bb415d9f0959189c725242ed162392a4c6507",
+    "test_conversation_ids": "b432ff6d124249bbf866eff925789a6e3f376cb76b1646b607efe0748908b38b",
+    "note": "Perturbation is applied after the split; the split is identical for every condition by construction."
+  },
+  "author_disjointness": {
+    "n_train_predator_authors": 113,
+    "n_test_predator_authors": 29,
+    "n_overlapping_authors": 0,
+    "disjoint": true
+  },
+  "labels": {
+    "unchanged": true,
+    "note": "y_test held fixed; perturbation never adds/removes conversations (drop guard keeps >= max(3, 25%) messages).",
+    "label_balance": {
+      "positives": 219,
+      "negatives": 12983
+    }
+  },
+  "metadata_fields": {
+    "changed": false,
+    "note": "Author IDs preserved on surviving messages; no other metadata/telemetry fields exist in the pipeline."
+  },
+  "text_surface": {
+    "changed_for_nonzero_strengths": true,
+    "how_and_why": "Same discourse-noise family as perturbation_sweep.json (truncate, benign-swap, drop, adjacent transpositions), test positives only."
+  },
+  "no_raw_text_in_outputs": true,
+  "per_condition": [
+    {
+      "strength_name": "none",
+      "strength": 0.0,
+      "seed": null,
+      "labels_unchanged": true,
+      "n_test_conversations_unchanged": true,
+      "fraction_messages_modified": 0.0,
+      "mean_token_jaccard_original_vs_perturbed": 1.0,
+      "median_token_jaccard": 1.0,
+      "fraction_conversations_order_changed": 0.0,
+      "mean_messages_per_conversation": {
+        "before": 54.205479452054796,
+        "after": 54.205479452054796
+      },
+      "mean_words_per_message": {
+        "before": 5.908407755752154,
+        "after": 5.908407755752154
+      },
+      "op_totals": {
+        "kept": 11871,
+        "truncated": 0,
+        "swapped_benign": 0,
+        "dropped": 0,
+        "adjacent_transpositions": 0,
+        "drop_guard_hits": 0
+      }
+    },
+    {
+      "strength_name": "light",
+      "strength": 0.15,
+      "seed": 0,
+      "labels_unchanged": true,
+      "n_test_conversations_unchanged": true,
+      "fraction_messages_modified": 0.14244798247830848,
+      "mean_token_jaccard_original_vs_perturbed": 0.8311105342368393,
+      "median_token_jaccard": 0.8541666666666666,
+      "fraction_conversations_order_changed": 1.0,
+      "mean_messages_per_conversation": {
+        "before": 54.205479452054796,
+        "after": 52.68036529680365
+      },
+      "mean_words_per_message": {
+        "before": 5.908407755752154,
+        "after": 5.525987400025689
+      },
+      "op_totals": {
+        "kept": 10180,
+        "truncated": 697,
+        "swapped_benign": 660,
+        "dropped": 334,
+        "adjacent_transpositions": 839,
+        "drop_guard_hits": 4
+      }
+    },
+    {
+      "strength_name": "medium",
+      "strength": 0.35,
+      "seed": 0,
+      "labels_unchanged": true,
+      "n_test_conversations_unchanged": true,
+      "fraction_messages_modified": 0.3475697076910117,
+      "mean_token_jaccard_original_vs_perturbed": 0.6103583366449834,
+      "median_token_jaccard": 0.5838150289017341,
+      "fraction_conversations_order_changed": 1.0,
+      "mean_messages_per_conversation": {
+        "before": 54.205479452054796,
+        "after": 50.333333333333336
+      },
+      "mean_words_per_message": {
+        "before": 5.908407755752154,
+        "after": 5.422207331426018
+      },
+      "op_totals": {
+        "kept": 7745,
+        "truncated": 1621,
+        "swapped_benign": 1657,
+        "dropped": 848,
+        "adjacent_transpositions": 1892,
+        "drop_guard_hits": 8
+      }
+    },
+    {
+      "strength_name": "heavy",
+      "strength": 0.6,
+      "seed": 0,
+      "labels_unchanged": true,
+      "n_test_conversations_unchanged": true,
+      "fraction_messages_modified": 0.6040771628337966,
+      "mean_token_jaccard_original_vs_perturbed": 0.38043049618593244,
+      "median_token_jaccard": 0.36577181208053694,
+      "fraction_conversations_order_changed": 1.0,
+      "mean_messages_per_conversation": {
+        "before": 54.205479452054796,
+        "after": 47.55707762557078
+      },
+      "mean_words_per_message": {
+        "before": 5.908407755752154,
+        "after": 4.937506885029465
+      },
+      "op_totals": {
+        "kept": 4700,
+        "truncated": 2920,
+        "swapped_benign": 2795,
+        "dropped": 1456,
+        "adjacent_transpositions": 3055,
+        "drop_guard_hits": 23
+      }
+    }
+  ]
+}
